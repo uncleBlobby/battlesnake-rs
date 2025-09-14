@@ -1,7 +1,6 @@
-use core::{f32, time};
+use core::f32;
 use std::cmp::Ordering;
-use std::thread::current;
-use std::{collections::HashMap, hash::Hash, ptr::null};
+use std::{collections::HashMap, hash::Hash};
 
 use serde::{Deserialize, Serialize};
 
@@ -149,7 +148,7 @@ impl Coord {
     //     let me = &b.
     // }
 
-    pub fn get_direction_to(self: &Self, other: &Coord, b: &Board) -> Direction {
+    pub fn get_direction_to(self: &Self, other: &Coord) -> Direction {
         //left
 
         if self.x > 0 {
@@ -259,12 +258,12 @@ pub fn flood_fill(b: &Board, s: Coord) -> i16 {
 
     let mut q: Vec<Coord> = Vec::new();
     let mut avail: Vec<Coord> = Vec::new();
-    let mut iters: i16 = 0;
+    // let mut iters: i16 = 0;
 
     q.push(s);
 
     while !q.is_empty() && start.elapsed().as_millis() < 150 {
-        iters += 1;
+        // iters += 1;
         let n = q[0];
         q.remove(0);
 
@@ -292,7 +291,7 @@ pub struct Node {
     came_from: Option<Coord>,
 }
 
-pub fn path_is_clear(p: &Vec<Coord>, b: &Board) -> bool {
+pub fn _path_is_clear(p: &Vec<Coord>, b: &Board) -> bool {
     for c in p {
         if c.is_in_snakeBody(b) {
             return false;
@@ -613,14 +612,14 @@ impl Battlesnake {
         return path;
     }
 
-    pub fn follow_path(self: &Self, sm: &mut ScoredMoves, path: Vec<Coord>, b: &Board) {
+    pub fn _follow_path(self: &Self, sm: &mut ScoredMoves, path: Vec<Coord>) {
         let mut pathStart = path[0];
 
         if pathStart == self.head {
             pathStart = path[1];
         }
 
-        let pathDirection = self.head.get_direction_to(&pathStart, b);
+        let pathDirection = self.head.get_direction_to(&pathStart);
 
         if pathDirection == Direction::Left {
             sm.Left.score += 10;
@@ -652,7 +651,7 @@ impl Battlesnake {
             pathStart = path[1];
         }
 
-        let pathDirection = self.head.get_direction_to(&pathStart, b);
+        let pathDirection = self.head.get_direction_to(&pathStart);
 
         if pathDirection == Direction::Left {
             sm.Left.score += weight;
@@ -709,7 +708,7 @@ impl Battlesnake {
         }
     }
 
-    pub fn get_distance_toward_food(self: &Self, b: &Board) -> u16 {
+    pub fn _get_distance_toward_food(self: &Self, b: &Board) -> u16 {
         let cf = self.find_closest_food(b);
 
         if cf.is_some() {
