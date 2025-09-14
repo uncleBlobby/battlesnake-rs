@@ -1,8 +1,7 @@
 use core::f32;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::{collections::HashMap, hash::Hash};
-
-use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Direction {
@@ -428,6 +427,19 @@ pub struct Board {
 }
 
 impl Board {
+    fn get_longest_snake_id(self: &Self) -> String {
+        let mut longest = &self.snakes[0];
+        if self.snakes.len() == 0 {
+            return longest.id.clone();
+        } else {
+            for s in &self.snakes {
+                if s.body.len() >= longest.body.len() {
+                    longest = &s;
+                }
+            }
+        }
+        return longest.id.clone();
+    }
     fn coord_has_snake(self: &Self, c: &Coord) -> bool {
         for s in self.snakes.clone() {
             for b in s.body {
@@ -457,6 +469,10 @@ pub struct Battlesnake {
 impl Battlesnake {
     pub fn get_missing_health(self: &Self) -> u16 {
         return 100 - self.health;
+    }
+
+    pub fn is_longest_snake_on_board(self: &Self, b: &Board) -> bool {
+        return b.get_longest_snake_id() == self.id;
     }
 
     pub fn ate_last_turn(self: &Self) -> bool {
@@ -796,6 +812,13 @@ impl Battlesnake {
         }
 
         possible_moves.sort_by(|a, b| b.cmp(a));
+
+        if possible_moves[0].score == possible_moves[1].score {
+            return ScoredMove {
+                direction: possible_moves[1].direction,
+                score: possible_moves[1].score,
+            };
+        }
 
         return ScoredMove {
             direction: possible_moves[0].direction,

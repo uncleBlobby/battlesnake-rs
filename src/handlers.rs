@@ -32,11 +32,15 @@ pub async fn move_handler(Json(payload): Json<MoveRequest>) -> Json<serde_json::
     // TODO: tune the weight of moving  toward tail
     // TODO: use flood fill results more effectively..
 
-    you.move_toward_tail(&mut sm, b);
+    if you.is_longest_snake_on_board(b) {
+        you.move_toward_tail(&mut sm, b);
+    }
 
-    if you.get_missing_health() > 67 {
+    if you.get_missing_health() > 50 || !you.is_longest_snake_on_board(b) {
         you.move_toward_food(&mut sm, b);
     }
+
+    // if !you.is_longest_snake_on_board(b) {}
 
     you.use_flood_fill(&mut sm, b);
 

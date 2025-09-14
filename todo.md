@@ -3,6 +3,8 @@
   -[x] food targeting
     -[] find path to food
     -[] weighting of food target priority?
+
+  -[x] path toward tail
   -[x] flood fill
     -[] how to factor in flood fill move availability to decision making?
   -[x] tail position safety
@@ -15,5 +17,9 @@
     -[] display turn by turn evaluation in browser board playout?
       - seems like a big task
   
-  
 
+  -[] sort all enemy snakes by size / distance
+    -[] a* path find to smallest closest snake head
+
+
+  -[] add pretty print for (scored move, turn output) debugging
