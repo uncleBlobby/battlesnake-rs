@@ -1,11 +1,27 @@
+use core::f32;
+use std::cmp::Ordering;
+use std::thread::current;
+use std::{collections::HashMap, hash::Hash, ptr::null};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum Direction {
+pub enum Direction {
     Left,
     Right,
     Down,
     Up,
+}
+
+impl Direction {
+    pub fn get_str(self: &Self) -> String {
+        match self {
+            Direction::Left => "left".to_string(),
+            Direction::Right => "right".to_string(),
+            Direction::Down => "down".to_string(),
+            Direction::Up => "up".to_string(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -16,12 +32,7 @@ pub struct ScoredMove {
 
 impl ScoredMove {
     pub fn get_direction_str(self: &Self) -> String {
-        match self.direction {
-            Direction::Left => "left".to_string(),
-            Direction::Right => "right".to_string(),
-            Direction::Down => "down".to_string(),
-            Direction::Up => "up".to_string(),
-        }
+        return self.direction.get_str();
     }
 }
 
@@ -76,10 +87,202 @@ impl PartialOrd for ScoredMove {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-struct Coord {
+#[derive(Copy, Debug, Deserialize, Serialize, Clone, Eq, Hash)]
+pub struct Coord {
     x: u16,
     y: u16,
+}
+
+pub fn reconstruct_path(mut current: Coord, came_from: &HashMap<Coord, Coord>) -> Vec<Coord> {
+    let mut path = vec![current];
+    while let Some(&prev) = came_from.get(&current) {
+        current = prev;
+        path.push(current.clone());
+    }
+    path.reverse();
+    return path;
+}
+
+impl Coord {
+    pub fn get_direction_to(self: &Self, other: &Coord, b: &Board) -> Direction {
+        //left
+
+        if self.x > 0 {
+            if self.x - 1 == other.x && self.y == other.y {
+                return Direction::Left;
+            }
+        }
+
+        // right
+
+        if self.x + 1 == other.x && self.y == other.y {
+            return Direction::Right;
+        }
+
+        // down
+
+        if self.y > 0 {
+            if self.x == other.x && self.y - 1 == other.y {
+                return Direction::Down;
+            }
+        }
+
+        // up
+
+        if self.x == other.x && self.y + 1 == other.y {
+            return Direction::Up;
+        }
+
+        return Direction::Left;
+    }
+
+    pub fn get_distance_to(self: &Self, other: &Coord) -> u16 {
+        let distanceX = self.x as i16 - other.x as i16;
+        let distanceY = self.y as i16 - other.x as i16;
+
+        let total = distanceX.abs() + distanceY.abs();
+
+        return total as u16;
+    }
+
+    pub fn get_neighbours(self: Self, b: &Board) -> Vec<Coord> {
+        let mut nbs: Vec<Coord> = Vec::new();
+
+        if self.x > 0 {
+            nbs.push(Coord {
+                x: self.x - 1,
+                y: self.y,
+            });
+        }
+
+        if self.x + 1 < b.width {
+            nbs.push(Coord {
+                x: self.x + 1,
+                y: self.y,
+            });
+        }
+
+        if self.y > 0 {
+            nbs.push(Coord {
+                x: self.x,
+                y: self.y - 1,
+            });
+        }
+
+        if self.y + 1 < b.height {
+            nbs.push(Coord {
+                x: self.x,
+                y: self.y + 1,
+            });
+        }
+
+        return nbs;
+    }
+}
+
+impl PartialEq for Coord {
+    fn eq(&self, other: &Self) -> bool {
+        if self.x == other.x && self.y == other.y {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct CoordWithDistance {
+    x: u16,
+    y: u16,
+    distance: u16,
+}
+
+impl Ord for CoordWithDistance {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.distance.cmp(&other.distance)
+    }
+}
+
+impl PartialOrd for CoordWithDistance {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Node {
+    coord: Coord,
+    g_score: f32,
+    f_score: f32,
+    came_from: Option<Coord>,
+}
+
+pub fn a_star_path_find(start: Coord, end: Coord, b: &Board) -> Option<Vec<Coord>> {
+    //-> Vec<Coord>
+    let mut open_set: HashMap<Coord, Node> = HashMap::new();
+    let mut closed_set: HashMap<Coord, Node> = HashMap::new();
+    let mut came_from: HashMap<Coord, Coord> = HashMap::new();
+
+    let start_node = Node {
+        coord: start.clone(),
+        g_score: 0.0,
+        f_score: heuristic_from_n_to_end(start, end),
+        came_from: None,
+    };
+
+    open_set.insert(start, start_node);
+
+    while !open_set.is_empty() {
+        let current_coord = open_set
+            .iter()
+            .min_by(|a, b| {
+                a.1.f_score
+                    .partial_cmp(&b.1.f_score)
+                    .unwrap_or(Ordering::Equal)
+            })
+            .map(|(c, _)| *c)
+            .unwrap();
+
+        if current_coord == end {
+            return Some(reconstruct_path(current_coord, &came_from));
+        }
+
+        let current_node = open_set.remove(&current_coord).unwrap();
+        closed_set.insert(current_coord, current_node);
+
+        for neighb in current_coord.get_neighbours(b) {
+            if closed_set.contains_key(&neighb) {
+                continue;
+            }
+
+            let mut tentative_g = current_node.g_score + 1.0;
+
+            for snake in &b.snakes {
+                if snake.body.contains(&neighb) {
+                    tentative_g += 100.0;
+                }
+            }
+
+            let neighbour_node = open_set.entry(neighb).or_insert(Node {
+                coord: neighb,
+                g_score: f32::INFINITY,
+                f_score: f32::INFINITY,
+                came_from: None,
+            });
+
+            if tentative_g < neighbour_node.g_score {
+                came_from.insert(neighb, current_coord);
+                neighbour_node.g_score = tentative_g;
+                neighbour_node.f_score = tentative_g + heuristic_from_n_to_end(neighb, end);
+            }
+        }
+    }
+
+    None
+}
+
+pub fn heuristic_from_n_to_end(n: Coord, end: Coord) -> f32 {
+    return n.get_distance_to(&end) as f32;
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -274,14 +477,72 @@ impl Battlesnake {
         }
     }
 
+    pub fn find_closest_food(self: &Self, b: &Board) -> Option<Coord> {
+        if b.food.len() == 0 {
+            return None;
+        } else {
+            // sort all foods on board by distance from head.
+
+            let mut distanceFoods: Vec<CoordWithDistance> = Vec::new();
+
+            for f in b.food.clone() {
+                let cwd = CoordWithDistance {
+                    x: f.x,
+                    y: f.y,
+                    distance: f.get_distance_to(&self.head),
+                };
+                distanceFoods.push(cwd);
+            }
+
+            distanceFoods.sort();
+
+            return Some(Coord {
+                x: distanceFoods[0].x,
+                y: distanceFoods[0].y,
+            });
+        }
+    }
+
+    pub fn find_path_to(self: &Self, b: &Board, target: &Coord) -> Option<Vec<Coord>> {
+        let path = a_star_path_find(self.head, *target, b);
+
+        return path;
+    }
+
+    pub fn follow_path(self: &Self, sm: &mut ScoredMoves, path: Vec<Coord>, b: &Board) {
+        let mut pathStart = path[0];
+
+        if pathStart == self.head {
+            pathStart = path[1];
+        }
+
+        let pathDirection = self.head.get_direction_to(&pathStart, b);
+
+        if pathDirection == Direction::Left {
+            sm.Left.score += 10;
+        }
+
+        if pathDirection == Direction::Right {
+            sm.Right.score += 10;
+        }
+
+        if pathDirection == Direction::Up {
+            sm.Up.score += 10;
+        }
+
+        if pathDirection == Direction::Down {
+            sm.Down.score += 10;
+        }
+    }
+
     pub fn choose_move(self: &Self, sm: &ScoredMoves) -> ScoredMove {
         let mut possible_moves: Vec<&ScoredMove> = Vec::new();
         for m in sm.iter() {
             // TODO: introduce threshold for determining satisfactory move
             // right now anything negative should result in death
-            if m.score >= 0 {
-                possible_moves.push(m);
-            }
+            //if m.score >= 0 {
+            possible_moves.push(m);
+            //}
         }
 
         possible_moves.sort_by(|a, b| b.cmp(a));

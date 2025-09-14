@@ -33,6 +33,29 @@ pub async fn move_handler(Json(payload): Json<MoveRequest>) -> Json<serde_json::
     you.avoid_any_snake(&mut sm, b);
     //println!("done avoiding any snake...");
 
+    //prefer direction of closest food...
+    // TODO: tune the weighting of the food preference
+
+    let cf = you.find_closest_food(b);
+
+    if cf.is_some() {
+        match cf {
+            Some(c) => {
+                let path = you.find_path_to(b, &c);
+
+                if path.is_some() {
+                    match path {
+                        Some(p) => {
+                            you.follow_path(&mut sm, p, b);
+                        }
+                        None => {}
+                    }
+                }
+            }
+            None => {}
+        }
+    }
+
     //println!("choosing best move...");
     let chosen_move = you.choose_move(&sm);
     //println!("done choosing best move...");
