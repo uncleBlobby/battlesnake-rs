@@ -44,6 +44,8 @@ pub struct ScoredMoves {
 }
 
 impl ScoredMoves {
+    const DEATH: i16 = -1000;
+
     pub fn init() -> ScoredMoves {
         let l: ScoredMove = ScoredMove {
             direction: Direction::Left,
@@ -87,7 +89,7 @@ impl PartialOrd for ScoredMove {
     }
 }
 
-#[derive(Copy, Debug, Deserialize, Serialize, Clone, Eq, Hash)]
+#[derive(Copy, Debug, Deserialize, Serialize, Clone, Hash)]
 pub struct Coord {
     x: u16,
     y: u16,
@@ -126,7 +128,7 @@ impl Coord {
         // should be done now?
 
         for snake in snakes {
-            if snake.body[snake.body.len() - 1] == snake.body[snake.body.len() - 2] {
+            if snake.ate_last_turn() {
                 // snake has just eaten -- tail space will not be safe
                 for body in &snake.body {
                     if self.x == body.x && self.y == body.y {
@@ -233,6 +235,8 @@ impl PartialEq for Coord {
         }
     }
 }
+
+impl Eq for Coord {}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct CoordWithDistance {
@@ -454,6 +458,11 @@ impl Battlesnake {
     pub fn get_missing_health(self: &Self) -> u16 {
         return 100 - self.health;
     }
+
+    pub fn ate_last_turn(self: &Self) -> bool {
+        return self.body[self.body.len() - 1] == self.body[self.body.len() - 2];
+    }
+
     pub fn avoid_own_neck(self: &Self, sm: &mut ScoredMoves, b: &Board) {
         let head = &self.head;
         let neck = &self.body[1];
@@ -462,7 +471,7 @@ impl Battlesnake {
 
         if head.x > 0 {
             if head.x - 1 == neck.x && head.y == neck.y {
-                sm.Left.score -= 100;
+                sm.Left.score = ScoredMoves::DEATH;
             }
         }
 
@@ -470,7 +479,7 @@ impl Battlesnake {
 
         if head.x + 1 < b.width {
             if head.x + 1 == neck.x && head.y == neck.y {
-                sm.Right.score -= 100;
+                sm.Right.score = ScoredMoves::DEATH;
             }
         }
 
@@ -478,13 +487,13 @@ impl Battlesnake {
 
         if head.y + 1 < b.height {
             if head.x == neck.x && head.y == neck.y + 1 {
-                sm.Up.score -= 100;
+                sm.Up.score = ScoredMoves::DEATH;
             }
         }
 
         if neck.y > 0 {
             if head.x == neck.x && head.y == neck.y - 1 {
-                sm.Down.score -= 100;
+                sm.Down.score = ScoredMoves::DEATH;
             }
         }
     }
@@ -500,12 +509,8 @@ impl Battlesnake {
             };
 
             if target.is_in_snakeBody(b) {
-                sm.Left.score -= 100;
+                sm.Left.score = ScoredMoves::DEATH;
             }
-
-            // if b.coord_has_snake(target) {
-            //     sm.Left.score -= 100;
-            // }
         }
 
         // look down
@@ -517,12 +522,8 @@ impl Battlesnake {
             };
 
             if target.is_in_snakeBody(b) {
-                sm.Down.score -= 100;
+                sm.Down.score = ScoredMoves::DEATH;
             }
-
-            // if b.coord_has_snake(target) {
-            //     sm.Down.score -= 100;
-            // }
         }
 
         // look right
@@ -534,12 +535,8 @@ impl Battlesnake {
             };
 
             if target.is_in_snakeBody(b) {
-                sm.Right.score -= 100;
+                sm.Right.score = ScoredMoves::DEATH;
             }
-
-            // if b.coord_has_snake(target) {
-            //     sm.Right.score -= 100;
-            // }
         }
 
         // look up
@@ -551,12 +548,8 @@ impl Battlesnake {
             };
 
             if target.is_in_snakeBody(b) {
-                sm.Up.score -= 100;
+                sm.Up.score = ScoredMoves::DEATH;
             }
-
-            // if b.coord_has_snake(target) {
-            //     sm.Up.score -= 100;
-            // }
         }
     }
 
@@ -564,19 +557,19 @@ impl Battlesnake {
         let head = &self.head;
 
         if head.x == 0 {
-            sm.Left.score -= 100;
+            sm.Left.score = ScoredMoves::DEATH;
         }
 
         if head.x == b.width - 1 {
-            sm.Right.score -= 100;
+            sm.Right.score = ScoredMoves::DEATH;
         }
 
         if head.y == 0 {
-            sm.Down.score -= 100;
+            sm.Down.score = ScoredMoves::DEATH;
         }
 
         if head.y == b.height - 1 {
-            sm.Up.score -= 100;
+            sm.Up.score = ScoredMoves::DEATH;
         }
     }
 
