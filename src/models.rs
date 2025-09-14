@@ -105,6 +105,51 @@ pub fn reconstruct_path(mut current: Coord, came_from: &HashMap<Coord, Coord>) -
 }
 
 impl Coord {
+    pub fn contains_larger_snake_head(self: &Self, me: &Battlesnake, b: &Board) -> bool {
+        for snake in &b.snakes {
+            if snake.head.x == self.x && snake.head.y == self.y {
+                if snake.length >= me.length {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    pub fn contains_smaller_snake_head(self: &Self, me: &Battlesnake, b: &Board) -> bool {
+        for snake in &b.snakes {
+            if snake.head.x == self.x && snake.head.y == self.y {
+                if snake.length < me.length {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    pub fn get_next_coord(self: &Self, dir: Direction) -> Coord {
+        match dir {
+            Direction::Left => Coord {
+                x: self.x - 1,
+                y: self.y,
+            },
+            Direction::Right => Coord {
+                x: self.x + 1,
+                y: self.y,
+            },
+            Direction::Up => Coord {
+                x: self.x,
+                y: self.y + 1,
+            },
+            Direction::Down => Coord {
+                x: self.x,
+                y: self.y - 1,
+            },
+        }
+    }
+
     pub fn is_in_bounds(self: &Self, b: &Board) -> bool {
         if self.x >= b.width {
             return false;
@@ -798,6 +843,136 @@ impl Battlesnake {
             );
             sm.Up.score += uv;
             println!("[ff {}]: {}", "up", uv)
+        }
+    }
+
+    pub fn attack_smaller_snake_head(self: &Self, sm: &mut ScoredMoves, b: &Board) {
+        const SMALL_SNAKE_ATTACK: i16 = 75;
+        // look each possible direction, if that move is scored >= 0
+
+        // left
+
+        if sm.Left.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Left.direction);
+            // get all neighbours of new head position
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_smaller_snake_head(self, b) {
+                    sm.Left.score += SMALL_SNAKE_ATTACK;
+                }
+            }
+        }
+
+        // right
+
+        if sm.Right.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Right.direction);
+
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_smaller_snake_head(self, b) {
+                    sm.Right.score += SMALL_SNAKE_ATTACK;
+                }
+            }
+        }
+
+        // up
+
+        if sm.Up.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Up.direction);
+
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_smaller_snake_head(self, b) {
+                    sm.Up.score += SMALL_SNAKE_ATTACK;
+                }
+            }
+        }
+
+        // down
+
+        if sm.Down.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Down.direction);
+
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_smaller_snake_head(self, b) {
+                    sm.Down.score += SMALL_SNAKE_ATTACK;
+                }
+            }
+        }
+    }
+
+    pub fn avoid_larger_snake_head(self: &Self, sm: &mut ScoredMoves, b: &Board) {
+        const LARGE_SNAKE_AVOIDANCE: i16 = -100;
+        // look each possible direction, if that move is scored >= 0
+
+        // left
+
+        if sm.Left.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Left.direction);
+            // get all neighbours of new head position
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_larger_snake_head(self, b) {
+                    sm.Left.score += LARGE_SNAKE_AVOIDANCE;
+                }
+            }
+        }
+
+        // right
+
+        if sm.Right.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Right.direction);
+
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_larger_snake_head(self, b) {
+                    sm.Right.score += LARGE_SNAKE_AVOIDANCE;
+                }
+            }
+        }
+
+        // up
+
+        if sm.Up.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Up.direction);
+
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_larger_snake_head(self, b) {
+                    sm.Up.score += LARGE_SNAKE_AVOIDANCE;
+                }
+            }
+        }
+
+        // down
+
+        if sm.Down.score >= 0 {
+            // get new head position after move
+            let newHead = self.head.get_next_coord(sm.Down.direction);
+
+            let nbs = newHead.get_neighbours(b);
+
+            for n in nbs {
+                if n.contains_larger_snake_head(self, b) {
+                    sm.Down.score += LARGE_SNAKE_AVOIDANCE;
+                }
+            }
         }
     }
 

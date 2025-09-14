@@ -42,6 +42,9 @@ pub async fn move_handler(Json(payload): Json<MoveRequest>) -> Json<serde_json::
 
     // if !you.is_longest_snake_on_board(b) {}
 
+    you.attack_smaller_snake_head(&mut sm, b);
+    you.avoid_larger_snake_head(&mut sm, b);
+
     you.use_flood_fill(&mut sm, b);
 
     //println!("choosing best move...");
