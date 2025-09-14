@@ -9,8 +9,8 @@ pub async fn get_battlesnake_details() -> Json<BattlesnakeDetails> {
     Json(details)
 }
 
-pub async fn game_start_handler(Json(payload): Json<GameStart>) -> StatusCode {
-    println!("{:?}", payload);
+pub async fn game_start_handler(Json(_payload): Json<GameStart>) -> StatusCode {
+    //println!("{:?}", payload);
     StatusCode::OK
     // format!("{} OK", payload.turn)
 }
@@ -21,31 +21,36 @@ pub async fn move_handler(Json(payload): Json<MoveRequest>) -> Json<serde_json::
 
     let you = payload.get_you_ref();
 
-    //println!("avoiding own neck...");
     you.avoid_own_neck(&mut sm, b);
-    //println!("done avoiding own neck...");
 
-    //println!("avoiding walls...");
     you.avoid_walls(&mut sm, b);
-    //println!("done avoiding walls...");
 
-    //println!("avoiding any snake...");
     you.avoid_any_snake(&mut sm, b);
-    //println!("done avoiding any snake...");
 
     //prefer direction of closest food...
     // TODO: tune the weighting of the food preference
+    // TODO: tune the weight of moving  toward tail
+    // TODO: use flood fill results more effectively..
 
-    you.move_toward_food(&mut sm, b);
+    you.move_toward_tail(&mut sm, b);
+
+    if you.get_missing_health() > 67 {
+        you.move_toward_food(&mut sm, b);
+    }
+
+    you.use_flood_fill(&mut sm, b);
 
     //println!("choosing best move...");
     let chosen_move = you.choose_move(&sm);
     //println!("done choosing best move...");
 
+    println!("{:?}", sm);
+    println!("{:?}", chosen_move);
+
     Json(json!({"move": chosen_move.get_direction_str()}))
 }
 
-pub async fn game_end_handler(Json(payload): Json<GameOver>) -> StatusCode {
-    println!("{:?}", payload);
+pub async fn game_end_handler(Json(_payload): Json<GameOver>) -> StatusCode {
+    //println!("{:?}", payload);
     StatusCode::OK
 }

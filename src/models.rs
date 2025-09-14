@@ -1,4 +1,4 @@
-use core::f32;
+use core::{f32, time};
 use std::cmp::Ordering;
 use std::thread::current;
 use std::{collections::HashMap, hash::Hash, ptr::null};
@@ -36,6 +36,7 @@ impl ScoredMove {
     }
 }
 
+#[derive(Debug)]
 pub struct ScoredMoves {
     Left: ScoredMove,
     Right: ScoredMove,
@@ -104,6 +105,50 @@ pub fn reconstruct_path(mut current: Coord, came_from: &HashMap<Coord, Coord>) -
 }
 
 impl Coord {
+    pub fn is_in_bounds(self: &Self, b: &Board) -> bool {
+        if self.x >= b.width {
+            return false;
+        }
+
+        if self.y >= b.height {
+            return false;
+        }
+
+        return true;
+    }
+
+    pub fn is_in_snakeBody(self: &Self, b: &Board) -> bool {
+        let snakes = &b.snakes;
+
+        // TODO: check whether snake has just eaten..
+        // if snake has not just eaten, safe to assume their tail spot
+        // will be empty next turn
+
+        // should be done now?
+
+        for snake in snakes {
+            if snake.body[snake.body.len() - 1] == snake.body[snake.body.len() - 2] {
+                // snake has just eaten -- tail space will not be safe
+                for body in &snake.body {
+                    if self.x == body.x && self.y == body.y {
+                        return true;
+                    }
+                }
+            } else {
+                for (ind, body) in snake.body.iter().enumerate() {
+                    if self.x == body.x && self.y == body.y && ind != snake.body.len() - 1 {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // pub fn is_in_own_body(self: &Self, b: &Board) -> bool {
+    //     let me = &b.
+    // }
+
     pub fn get_direction_to(self: &Self, other: &Coord, b: &Board) -> Direction {
         //left
 
@@ -209,12 +254,52 @@ impl PartialOrd for CoordWithDistance {
     }
 }
 
+pub fn flood_fill(b: &Board, s: Coord) -> i16 {
+    let start = std::time::Instant::now();
+
+    let mut q: Vec<Coord> = Vec::new();
+    let mut avail: Vec<Coord> = Vec::new();
+    let mut iters: i16 = 0;
+
+    q.push(s);
+
+    while !q.is_empty() && start.elapsed().as_millis() < 150 {
+        iters += 1;
+        let n = q[0];
+        q.remove(0);
+
+        if n.is_in_bounds(b) && !n.is_in_snakeBody(b) {
+            if !avail.contains(&n) {
+                avail.push(n);
+
+                let good_neighbours = n.get_neighbours(b);
+
+                for n in good_neighbours {
+                    q.push(n);
+                }
+            }
+        }
+    }
+
+    return avail.len().try_into().unwrap();
+}
+
 #[derive(Clone, Copy)]
 pub struct Node {
     coord: Coord,
     g_score: f32,
     f_score: f32,
     came_from: Option<Coord>,
+}
+
+pub fn path_is_clear(p: &Vec<Coord>, b: &Board) -> bool {
+    for c in p {
+        if c.is_in_snakeBody(b) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 pub fn a_star_path_find(start: Coord, end: Coord, b: &Board) -> Option<Vec<Coord>> {
@@ -259,7 +344,7 @@ pub fn a_star_path_find(start: Coord, end: Coord, b: &Board) -> Option<Vec<Coord
 
             for snake in &b.snakes {
                 if snake.body.contains(&neighb) {
-                    tentative_g += 100.0;
+                    tentative_g += 1000.0;
                 }
             }
 
@@ -367,6 +452,9 @@ pub struct Battlesnake {
 }
 
 impl Battlesnake {
+    pub fn get_missing_health(self: &Self) -> u16 {
+        return 100 - self.health;
+    }
     pub fn avoid_own_neck(self: &Self, sm: &mut ScoredMoves, b: &Board) {
         let head = &self.head;
         let neck = &self.body[1];
@@ -412,9 +500,13 @@ impl Battlesnake {
                 y: head.y,
             };
 
-            if b.coord_has_snake(target) {
+            if target.is_in_snakeBody(b) {
                 sm.Left.score -= 100;
             }
+
+            // if b.coord_has_snake(target) {
+            //     sm.Left.score -= 100;
+            // }
         }
 
         // look down
@@ -425,9 +517,13 @@ impl Battlesnake {
                 y: head.y - 1,
             };
 
-            if b.coord_has_snake(target) {
+            if target.is_in_snakeBody(b) {
                 sm.Down.score -= 100;
             }
+
+            // if b.coord_has_snake(target) {
+            //     sm.Down.score -= 100;
+            // }
         }
 
         // look right
@@ -438,9 +534,13 @@ impl Battlesnake {
                 y: head.y,
             };
 
-            if b.coord_has_snake(target) {
+            if target.is_in_snakeBody(b) {
                 sm.Right.score -= 100;
             }
+
+            // if b.coord_has_snake(target) {
+            //     sm.Right.score -= 100;
+            // }
         }
 
         // look up
@@ -451,9 +551,13 @@ impl Battlesnake {
                 y: head.y + 1,
             };
 
-            if b.coord_has_snake(target) {
+            if target.is_in_snakeBody(b) {
                 sm.Up.score -= 100;
             }
+
+            // if b.coord_has_snake(target) {
+            //     sm.Up.score -= 100;
+            // }
         }
     }
 
@@ -544,7 +648,7 @@ impl Battlesnake {
     ) {
         let mut pathStart = path[0];
 
-        if pathStart == self.head {
+        if pathStart == self.head && path.len() > 1 {
             pathStart = path[1];
         }
 
@@ -567,6 +671,23 @@ impl Battlesnake {
         }
     }
 
+    pub fn move_toward_tail(self: &Self, sm: &mut ScoredMoves, b: &Board) {
+        let tail = self.body[self.body.len() - 1];
+
+        let path = self.find_path_to(b, &tail);
+
+        if path.is_some() {
+            match path {
+                Some(p) => {
+                    // if path_is_clear(&p, b) {
+                    self.follow_path_with_weight(sm, p, b, 1);
+                    // }
+                }
+                None => {}
+            }
+        }
+    }
+
     pub fn move_toward_food(self: &Self, sm: &mut ScoredMoves, b: &Board) {
         let cf = self.find_closest_food(b);
         if cf.is_some() {
@@ -585,6 +706,90 @@ impl Battlesnake {
                 }
                 None => {}
             }
+        }
+    }
+
+    pub fn get_distance_toward_food(self: &Self, b: &Board) -> u16 {
+        let cf = self.find_closest_food(b);
+
+        if cf.is_some() {
+            match cf {
+                Some(c) => {
+                    let path = self.find_path_to(b, &c);
+
+                    if path.is_some() {
+                        match path {
+                            Some(p) => {
+                                return p.len().try_into().unwrap();
+                            }
+                            None => {
+                                return 0;
+                            }
+                        }
+                    } else {
+                        return 0;
+                    }
+                }
+                None => {
+                    return 0;
+                }
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    pub fn use_flood_fill(self: &Self, sm: &mut ScoredMoves, b: &Board) {
+        let head = self.head;
+
+        //let safe_neighbours = head.get_neighbours(b);
+
+        if head.x > 0 {
+            let lv = flood_fill(
+                b,
+                Coord {
+                    x: head.x - 1,
+                    y: head.y,
+                },
+            );
+            sm.Left.score += lv;
+            println!("[ff {}]: {}", "left", lv)
+        }
+
+        if head.x + 1 < b.width {
+            let rv = flood_fill(
+                b,
+                Coord {
+                    x: head.x + 1,
+                    y: head.y,
+                },
+            );
+            sm.Right.score += rv;
+            println!("[ff {}]: {}", "right", rv)
+        }
+
+        if head.y > 0 {
+            let dv = flood_fill(
+                b,
+                Coord {
+                    x: head.x,
+                    y: head.y - 1,
+                },
+            );
+            sm.Down.score += dv;
+            println!("[ff {}]: {}", "down", dv)
+        }
+
+        if head.y + 1 < b.height {
+            let uv = flood_fill(
+                b,
+                Coord {
+                    x: head.x,
+                    y: head.y + 1,
+                },
+            );
+            sm.Up.score += uv;
+            println!("[ff {}]: {}", "up", uv)
         }
     }
 
