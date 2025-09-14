@@ -642,7 +642,7 @@ impl Battlesnake {
         self: &Self,
         sm: &mut ScoredMoves,
         path: Vec<Coord>,
-        b: &Board,
+        // b: &Board,
         weight: i16,
     ) {
         let mut pathStart = path[0];
@@ -679,7 +679,7 @@ impl Battlesnake {
             match path {
                 Some(p) => {
                     // if path_is_clear(&p, b) {
-                    self.follow_path_with_weight(sm, p, b, 1);
+                    self.follow_path_with_weight(sm, p, 1);
                     // }
                 }
                 None => {}
@@ -697,7 +697,7 @@ impl Battlesnake {
                     if path.is_some() {
                         match path {
                             Some(p) => {
-                                self.follow_path_with_weight(sm, p, b, 100 - self.health as i16);
+                                self.follow_path_with_weight(sm, p, 100 - self.health as i16);
                             }
                             None => {}
                         }
