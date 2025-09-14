@@ -535,6 +535,59 @@ impl Battlesnake {
         }
     }
 
+    pub fn follow_path_with_weight(
+        self: &Self,
+        sm: &mut ScoredMoves,
+        path: Vec<Coord>,
+        b: &Board,
+        weight: i16,
+    ) {
+        let mut pathStart = path[0];
+
+        if pathStart == self.head {
+            pathStart = path[1];
+        }
+
+        let pathDirection = self.head.get_direction_to(&pathStart, b);
+
+        if pathDirection == Direction::Left {
+            sm.Left.score += weight;
+        }
+
+        if pathDirection == Direction::Right {
+            sm.Right.score += weight;
+        }
+
+        if pathDirection == Direction::Up {
+            sm.Up.score += weight;
+        }
+
+        if pathDirection == Direction::Down {
+            sm.Down.score += weight;
+        }
+    }
+
+    pub fn move_toward_food(self: &Self, sm: &mut ScoredMoves, b: &Board) {
+        let cf = self.find_closest_food(b);
+        if cf.is_some() {
+            match cf {
+                Some(c) => {
+                    let path = self.find_path_to(b, &c);
+
+                    if path.is_some() {
+                        match path {
+                            Some(p) => {
+                                self.follow_path_with_weight(sm, p, b, 100 - self.health as i16);
+                            }
+                            None => {}
+                        }
+                    }
+                }
+                None => {}
+            }
+        }
+    }
+
     pub fn choose_move(self: &Self, sm: &ScoredMoves) -> ScoredMove {
         let mut possible_moves: Vec<&ScoredMove> = Vec::new();
         for m in sm.iter() {
